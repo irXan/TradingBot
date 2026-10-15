@@ -1,0 +1,12 @@
+# Environments & secrets
+.venv/
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Runtime data
+dashboard.db
+logs/
+*.log

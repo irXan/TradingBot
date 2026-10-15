@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>crypto-signals · desk</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131722; --panel2: #161b27; --border: #232a38;
+    --text: #d1d5db; --muted: #8b93a3; --accent: #2962ff;
+    --long: #26a69a; --short: #ef5350; --neutral: #787b86;
+    --green: #4ade80; --red: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13px/1.45 "JetBrains Mono", Consolas, monospace; }
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+           padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: 1px; }
+  header h1 span { color: var(--accent); }
+  .hdr-group { display: flex; align-items: center; gap: 6px; }
+  .hdr-group label { color: var(--muted); font-size: 11px; }
+  input[type=number] { width: 90px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font: inherit; }
+  select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 5px 8px; font: inherit; cursor: pointer; }
+  select option { background: var(--panel); }
+  button { background: var(--accent); color: #fff; border: none; border-radius: 4px;
+    padding: 6px 14px; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.danger { background: transparent; border: 1px solid var(--short); color: var(--short); padding: 3px 10px; font-size: 11px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); display: inline-block; }
+  .dot.off { background: var(--neutral); }
+  #scanMeta { color: var(--muted); font-size: 11px; }
+  main { padding: 18px; max-width: 1280px; margin: 0 auto; display: grid; gap: 16px; }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  section h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px;
+               color: var(--muted); margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 11px;
+       padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 7px 8px; border-bottom: 1px solid rgba(35,42,56,.55); white-space: nowrap; }
+  tr:hover td { background: var(--panel2); }
+  .badge { padding: 2px 10px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+  .LONG  { background: rgba(38,166,154,.15); color: var(--long); }
+  .SHORT { background: rgba(239,83,80,.15);  color: var(--short); }
+  .NEUTRAL { background: rgba(120,123,134,.12); color: var(--neutral); }
+  .conf-wrap { width: 70px; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .conf-fill { height: 100%; background: var(--accent); }
+  .num-r { font-weight: 700; }
+  .pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .pos-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+  .pos-card .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .kv { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; }
+  .kv span:first-child { color: var(--muted); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { padding: 4px 10px; border-radius: 4px; font-size: 11px; border: 1px solid var(--border); }
+  .chip.pass { border-color: var(--green); color: var(--green); }
+  .chip.fail { border-color: var(--red); color: var(--red); }
+  .chip b { color: var(--text); }
+  #equity { width: 100%; height: 140px; }
+  #tradebar { display: flex; align-items: center; gap: 14px; }
+  #tradebar .info { color: var(--muted); font-size: 11px; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border);
+           border-radius: 8px; width: min(860px, 94vw); padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.65); }
+  .dlg-head { display: flex; justify-content: space-between; align-items: center;
+              padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  #chartBox { height: 380px; margin: 12px 16px; }
+  #indGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr));
+             gap: 8px; padding: 0 16px 16px; }
+  #toasts { position: fixed; right: 18px; bottom: 18px; display: grid; gap: 8px; z-index: 50; }
+  .toast { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+           padding: 10px 14px; border-radius: 4px; max-width: 340px; }
+  .toast.err { border-left-color: var(--short); }
+  .empty { color: var(--muted); font-size: 12px; padding: 8px 2px; }
+  #observeBanner { display: none; border: 1px solid #f59e0b; background: rgba(245,158,11,.08);
+                   color: #fbbf24; border-radius: 8px; padding: 10px 14px; font-size: 12px; }
+  #observeBanner b { letter-spacing: 1px; }
+  .observe-note { color: #fbbf24; font-size: 11px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>crypto<span>-signals</span> desk</h1>
+  <div class="hdr-group">
+    <label>STRATEGY</label>
+    <select id="strategy" onchange="switchStrategy(this.value)">
+      <option value="v2_swing">v2_swing · 1h</option>
+      <option value="v3_scalp">v3_scalp · 5m</option>
+    </select>
+  </div>
+  <button class="ghost" id="autoBtn" onclick="toggleAuto()">AUTO: —</button>
+  <div class="hdr-group"><label>ACCOUNT $</label><input id="acct" type="number" min="1" step="any"></div>
+  <div class="hdr-group"><label>RISK %</label><input id="risk" type="number" min="0.1" max="5" step="0.1"></div>
+  <button class="ghost" onclick="saveSettings()">SAVE</button>
+  <button class="ghost" onclick="forceScan(this)">FORCE SCAN</button>
+  <button class="ghost" id="resetBtn" onclick="resetForwardTest(this)" title="Archive all live paper trades and restart the $100 forward-test at zero">RESET $100 → 0</button>
+  <span class="hdr-group"><span class="dot off" id="liveDot"></span><span id="scanMeta">connecting…</span></span>
+  <span id="modeMeta" style="color:var(--muted);font-size:11px"></span>
+</header>
+
+<main>
+  <section id="observeBanner">
+    <b>OBSERVE — NEW TRADES DISABLED</b>
+    <div style="margin-top:4px">v3_scalp keeps scanning 5m candles and logging every signal, gate reason,
+      confidence and entry/SL/TP payload with a hypothetical position size. No new paper trades (auto or manual).
+      Observed signals are excluded from win rate / expectancy / PF.</div>
+  </section>
+
+  <section>
+    <h2>MARKET SIGNALS <span style="font-weight:400" id="sigMeta"></span></h2>    <table>
+      <thead><tr>
+        <th></th><th>#</th><th>SYMBOL</th><th>PRICE</th><th>24H %</th>
+        <th>SIGNAL</th><th>CONFIDENCE</th><th>ENTRY</th><th>STOP</th><th>TARGET</th><th></th>
+      </tr></thead>
+      <tbody id="sigBody"></tbody>
+    </table>
+    <div style="margin-top:12px" id="tradebar">
+      <button id="openBtn" onclick="openTrades()" disabled>OPEN TRACKED TRADES</button>
+      <span class="info" id="slotsInfo"></span>
+      <span class="info">risk per trade auto-sized from account × risk%</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>ACTIVE POSITIONS <span style="font-weight:400" id="posCount"></span></h2>
+    <div class="cash-strip" id="cashStrip" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px"></div>
+    <div class="pos-grid" id="posGrid"></div>
+    <div class="empty" id="posEmpty">no open tracked trades</div>
+  </section>
+
+  <section>
+    <h2>JOURNAL SCORECARD <span style="font-weight:400">go/no-go bars</span></h2>
+    <div class="chips" id="scoreChips"></div>
+    <div class="observe-note" id="observeScore"></div>
+    <canvas id="equity"></canvas>
+    <table>
+      <thead><tr><th>CLOSED</th><th>SYMBOL</th><th>DIR</th><th>OUTCOME</th><th>R</th></tr></thead>
+      <tbody id="histBody"></tbody>
+    </table>
+    <div class="empty" id="histEmpty">no closed trades yet — journal fills automatically</div>
+  </section>
+</main>
+
+<dialog id="chartDlg">
+  <div class="dlg-head"><b id="dlgTitle"></b><button class="ghost" onclick="chartDlg.close()">✕</button></div>
+  <div id="chartBox"></div>
+  <div id="indGrid"></div>
+</dialog>
+
+<div id="toasts"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sel = new Set();
+let S = null;
+let CUR = "v2_swing";
+
+const fmt = (n, d) => n == null ? "—" :
+  Math.abs(n) >= 1000 ? n.toLocaleString("en-US", {maximumFractionDigits: 2}) :
+  Math.abs(n) >= 1 ? (+n).toFixed(2) : Math.abs(n) >= 0.01 ? (+n).toFixed(4) : (+n).toPrecision(3);
+
+function toast(msg, err=false) {
+  const t = document.createElement("div");
+  t.className = "toast" + (err ? " err" : "");
+  t.textContent = msg;
+  $("toasts").appendChild(t);
+  setTimeout(() => t.remove(), 4200);
+}
+
+async function api(path, opts={}) {
+  const r = await fetch(path, {headers: {"Content-Type": "application/json"}, ...opts});
+  if (!r.ok) throw new Error(((await r.json().catch(() => null)) || {}).detail || r.status);
+  return r.json();
+}
+
+function badge(d) { return `<span class="badge ${d}">${d}</span>`; }
+
+/* ---------- rendering ---------- */
+
+function renderSignals() {
+  const sigs = S?.scan?.signals || [];
+  $("sigMeta").textContent = sigs.length ? `${sigs.length} coins · scanned ${new Date(S.scan.ts).toLocaleTimeString()}` : "";
+  $("sigBody").innerHTML = sigs.map((s, i) => {
+    const dis = s.direction === "NEUTRAL";
+    const chg = s.change_24h == null ? "—" : (s.change_24h >= 0 ? "+" : "") + (+s.change_24h).toFixed(2) + "%";
+    const chgCol = s.change_24h >= 0 ? "var(--green)" : "var(--red)";
+    return `<tr>
+      <td><input type="checkbox" ${dis ? "disabled" : ""} ${sel.has(s.symbol) ? "checked" : ""}
+                 onchange="toggleSel('${s.symbol}', this.checked)"></td>
+      <td>${i + 1}</td>
+      <td><b>${s.symbol}</b></td>
+      <td>${fmt(s.price)}</td>
+      <td style="color:${chgCol}">${chg}</td>
+      <td>${badge(s.direction)}</td>
+      <td><div class="conf-wrap"><div class="conf-fill" style="width:${s.confidence}%"></div></div></td>
+      <td>${fmt(s.entry)}</td><td>${fmt(s.stop_loss)}</td><td>${fmt(s.take_profit)}</td>
+      <td><button class="ghost" onclick="openChart('${s.symbol}')">CHART</button></td>
+    </tr>`;
+  }).join("");
+  renderTradebar();
+}
+
+function toggleSel(sym, on) { on ? sel.add(sym) : sel.delete(sym); renderTradebar(); }
+
+function renderTradebar() {
+  const scfg = (S.strategies || {})[CUR] || {};
+  const observe = !!scfg.observe;
+  const free = S.max_active - S.active_count;
+  const valid = [...sel].filter(x => S.scan?.signals?.some(s => s.symbol === x && s.direction !== "NEUTRAL"));
+  const ok = valid.length >= 1 && valid.length <= free;
+  $("openBtn").disabled = observe || !ok;
+  $("openBtn").textContent = observe
+    ? "OBSERVE — NEW TRADES DISABLED"
+    : (ok ? `OPEN ${valid.length} TRACKED TRADE${valid.length > 1 ? "S" : ""}` : "OPEN TRACKED TRADES");
+  $("slotsInfo").textContent = observe
+    ? "observation only — signals are logged, trades are not opened"
+    : `slots: ${S.active_count}/${S.max_active} used · ${valid.length} selected`;
+}
+
+function renderPositions() {
+  const act = S.positions.active;
+  const cash = S.positions.cash;
+  $("posEmpty").style.display = act.length ? "none" : "";
+  $("posCount").textContent = `${act.length}/${S.max_active}`;
+  const cs = $("cashStrip");
+  if (cash) {
+    cs.style.display = "";
+    cs.innerHTML = `equity <b>$${(+cash.equity).toFixed(2)}</b> · deployed <b>$${(+cash.deployed_cash).toFixed(2)}</b> · ` +
+      `remaining <b>$${(+cash.remaining_cash).toFixed(2)}</b> · total open risk <b>$${(+cash.total_open_risk).toFixed(2)}</b> · ` +
+      `max/pos <b>$${(+cash.max_position_quote).toFixed(2)}</b>`;
+  } else {
+    cs.style.display = "none";
+  }
+  $("posGrid").innerHTML = act.map(p => {
+    const rCol = p.live_r == null ? "var(--muted)" : p.live_r >= 0 ? "var(--green)" : "var(--red)";
+    const pnl = p.pnl_quote == null ? "—" : (p.pnl_quote >= 0 ? "+$" : "−$") + Math.abs(p.pnl_quote).toFixed(2);
+    const cap = p.cash_capped ? `<span class="badge SHORT">CASH-CAPPED</span>` :
+      (p.legacy_uncapped ? `<span class="badge NEUTRAL" title="opened before cash-only sizing; size uncapped">LEGACY</span>` : "");
+    const riskLine = (p.target_risk_quote != null || p.actual_risk_quote != null)
+      ? `<div class="kv"><span>TARGET RISK</span><span>$${(+p.target_risk_quote).toFixed(2)}</span></div>` +
+        `<div class="kv"><span>ACTUAL RISK @ SL</span><span>$${(+p.actual_risk_quote).toFixed(2)} (${(+p.risk_utilization_pct).toFixed(1)}%)</span></div>`
+      : "";
+    return `<div class="pos-card">
+      <div class="top"><b>${p.symbol}</b> ${badge(p.direction)} ${cap} <span style="color:${rCol}" class="num-r">${p.live_r == null ? "…" : (p.live_r >= 0 ? "+" : "") + (+p.live_r).toFixed(2) + "R"}</span></div>
+      <div class="kv"><span>LIVE</span><span>${fmt(p.live_price)}</span></div>
+      <div class="kv"><span>ENTRY</span><span>${fmt(p.entry)}</span></div>
+      <div class="kv"><span>STOP</span><span style="color:var(--short)">${fmt(p.stop_loss)}</span></div>
+      <div class="kv"><span>TARGET</span><span style="color:var(--long)">${fmt(p.take_profit)}</span></div>
+      <div class="kv"><span>SIZE</span><span>$${(+p.size_quote).toLocaleString("en-US")}</span></div>
+      ${riskLine}
+      <div class="kv"><span>P&amp;L</span><span style="color:${rCol}">${pnl}</span></div>
+      <div style="margin-top:8px;text-align:right"><button class="danger" onclick="closeTrade(${p.id})">CLOSE @ MARKET</button></div>
+    </div>`;
+  }).join("");
+}
+
+function renderHistory(sc) {
+  const rows = sc.recent;
+  $("histEmpty").style.display = rows.length ? "none" : "";
+  $("histBody").innerHTML = rows.map(t => {
+    const col = t.r >= 0 ? "var(--green)" : "var(--red)";
+    return `<tr>
+      <td style="color:var(--muted)">${new Date(t.closed_at).toLocaleString()}</td>
+      <td><b>${t.symbol}</b></td><td>${t.direction}</td>
+      <td><span class="badge ${t.status === "TP_HIT" ? "LONG" : t.status === "SL_HIT" ? "SHORT" : "NEUTRAL"}">${t.status}</span></td>
+      <td style="color:${col}" class="num-r">${t.r >= 0 ? "+" : ""}${(+t.r).toFixed(2)}R</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderScorecard(sc) {
+  $("scoreChips").innerHTML = Object.entries(sc.checks).map(([k, c]) =>
+    `<div class="chip ${c.pass ? "pass" : "fail"}">${k.replace(/_/g, " ").toUpperCase()}
+     <b>${c.value ?? "—"}${typeof c.value === "number" && k.includes("rate") ? "%" : k.includes("_r") && typeof c.value === "number" ? "R" : ""}</b> / ${c.bar}</div>`
+  ).join("");
+  const obs = sc.observe;
+  $("observeScore").textContent = obs
+    ? `${obs.mode} — ${obs.observed_not_opened_long} observed-but-not-opened LONG signal(s) recorded since ${new Date(obs.observed_since).toUTCString()}. ${obs.note}`
+    : "";
+  drawEquity(sc.equity_curve);
+}
+
+function drawEquity(curve) {
+  const cv = $("equity"), dpr = window.devicePixelRatio || 1;
+  cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  g.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
+  g.strokeStyle = "#232a38"; g.beginPath(); g.moveTo(0, cv.height / 2); g.lineTo(cv.width, cv.height / 2); g.stroke();
+  if (!curve.length) { g.fillStyle = "#8b93a3"; g.font = "11px monospace"; g.fillText("equity curve appears after first close", 8, 16); return; }
+  const rs = curve.map(p => p.cum_r), pad = 12;
+  const min = Math.min(...rs, 0), max = Math.max(...rs, 0.5);
+  const X = i => pad + i * (cv.width - 2 * pad) / Math.max(rs.length - 1, 1);
+  const Y = v => pad + (max - v) * (cv.height - 2 * pad) / (max - min);
+  g.strokeStyle = rs[rs.length - 1] >= 0 ? "#4ade80" : "#f87171";
+  g.lineWidth = 2; g.beginPath();
+  rs.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)));
+  g.stroke();
+  g.fillStyle = "#d1d5db"; g.font = "11px monospace";
+  g.fillText(`${rs[rs.length - 1] >= 0 ? "+" : ""}${rs[rs.length - 1].toFixed(2)}R`, X(rs.length - 1) - 40, Y(rs[rs.length - 1]) - 6);
+}
+
+/* ---------- actions ---------- */
+
+async function refresh() {
+  try {
+    S = await api("/api/state?strategy=" + encodeURIComponent(CUR));
+    const scfg = (S.strategies || {})[CUR] || {};
+    if ($("acct").value === "" || $("acct").dataset.for !== CUR) {
+      $("acct").value = scfg.capital != null ? scfg.capital : S.settings.account_size;
+      $("acct").dataset.for = CUR;
+    }
+    if ($("risk").value === "" || $("risk").dataset.for !== CUR) {
+      $("risk").value = scfg.risk_pct != null ? scfg.risk_pct : S.settings.risk_pct;
+      $("risk").dataset.for = CUR;
+    }
+    const auto = scfg.auto_open;
+    const observe = !!scfg.observe;
+    $("observeBanner").style.display = observe ? "" : "none";
+    $("autoBtn").style.display = observe ? "none" : "";
+    $("autoBtn").textContent = "AUTO: " + (auto ? "ON" : "MANUAL");
+    $("autoBtn").classList.toggle("ghost", false);
+    $("modeMeta").textContent = observe
+      ? `${CUR} · ${scfg.execution_mode || "PAPER"} · OBSERVE — NEW TRADES DISABLED · ${scfg.interval || ""}`
+      : `${CUR} · ${scfg.execution_mode || "PAPER"} · ${scfg.interval || ""} · slots ${S.active_count}/${S.max_active}`;
+    $("liveDot").classList.toggle("off", !S.scan);
+    $("scanMeta").textContent = S.scan ? `last scan ${new Date(S.scan.ts).toLocaleTimeString()} · next in ≤ ${Math.round(S.scan_seconds_left ?? 0)}s` : "waiting for first scan…";
+    [...sel].forEach(x => { if (!S.scan?.signals?.some(s => s.symbol === x)) sel.delete(x); });
+    renderSignals(); renderPositions();
+  } catch (e) { $("scanMeta").textContent = "backend unreachable"; $("liveDot").classList.add("off"); }
+}
+
+async function refreshScorecard() {
+  try { renderScorecard(await api("/api/scorecard?strategy=" + encodeURIComponent(CUR))); } catch {}
+}
+
+async function switchStrategy(name) {
+  CUR = name;
+  sel.clear();
+  await refresh(); await refreshScorecard();
+}
+
+async function toggleAuto() {
+  try {
+    const scfg = (S.strategies || {})[CUR] || {};
+    if (scfg.observe) { toast(`${CUR} is frozen — ${scfg.auto_open ? "observe" : "OBSERVE — NEW TRADES DISABLED"} locked`); return; }
+    const res = await api("/api/strategies/" + encodeURIComponent(CUR), {
+      method: "PATCH", body: JSON.stringify({auto_open: !scfg.auto_open})
+    });
+    toast(`${CUR} auto-open → ${res.auto_open ? "ON (PAPER auto-exec)" : "MANUAL"}`);
+    await refresh();
+  } catch (e) { toast("Toggle failed: " + e.message, true); }
+}
+
+async function forceScan(btn) {
+  btn.disabled = true; btn.textContent = "SCANNING…";
+  try { await api("/api/scan", {method: "POST", body: JSON.stringify({strategy: CUR})}); toast("Scan complete"); await refresh(); await refreshScorecard(); }
+  catch (e) { toast("Scan failed: " + e.message, true); }
+  btn.disabled = false; btn.textContent = "FORCE SCAN";
+}
+
+async function resetForwardTest(btn) {
+  if (!confirm("Archive ALL existing live paper trades and reset the $100 forward-test to zero for every strategy? Existing results will be excluded from win rate/expectancy/PF (history is kept, not deleted).")) return;
+  btn.disabled = true; btn.textContent = "RESETTING…";
+  try {
+    const res = await api("/api/reset", {method: "POST", body: JSON.stringify({strategy: "all"})});
+    toast(`Reset: ${res.archived_active} active archived, ${res.excluded} excluded — metrics + cash back to $100 / 0`);
+    await refresh(); await refreshScorecard();
+  } catch (e) { toast("Reset failed: " + e.message, true); }
+  btn.disabled = false; btn.textContent = "RESET $100 → 0";
+}
+
+async function saveSettings() {
+  try {
+    await api("/api/settings", {method: "PUT", body: JSON.stringify({account_size: +$("acct").value || 10000, risk_pct: +$("risk").value || 1})});
+    toast(`Settings saved — risking $${((+$("acct").value || 0) * (+$("risk").value || 0) / 100).toFixed(2)}/trade`);
+    await refresh();
+  } catch (e) { toast("Save failed: " + e.message, true); }
+}
+
+async function openTrades() {
+  try {
+    const res = await api("/api/trades", {method: "POST", body: JSON.stringify({strategy: CUR, symbols: [...sel]})});
+    res.opened.forEach(t => {
+      const actual = t.actual_risk_quote != null ? `, actual SL risk $${(+t.actual_risk_quote).toFixed(2)}${t.cash_capped ? " (capped)" : ""}` : "";
+      toast(`${t.symbol} ${t.direction} tracked — size $${(+t.size_quote).toLocaleString("en-US")}, target risk $${(+t.risk_quote).toFixed(2)}${actual}`);
+    });
+    res.skipped.forEach(sk => toast(`${sk.symbol}: ${sk.reason}`, true));
+    sel.clear(); await refresh();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function closeTrade(id) {
+  try { const t = await api(`/api/trades/${id}`, {method: "DELETE"}); toast(`${t.symbol} closed @ ${fmt(t.exit_price)} (${t.r_multiple >= 0 ? "+" : ""}${(+t.r_multiple).toFixed(2)}R)`); await refresh(); await refreshScorecard(); }
+  catch (e) { toast("Close failed: " + e.message, true); }
+}
+
+/* ---------- chart modal ---------- */
+
+let chart = null, series = null;
+
+async function openChart(symbol) {
+  const scfg = (S.strategies || {})[CUR] || {};
+  const interval = scfg.interval || "1d";
+  const sig = S.scan?.signals?.find(s => s.symbol === symbol);
+  $("dlgTitle").textContent = `${symbol} · ${interval.toUpperCase()}`;
+  let levels = null;
+  if (sig) levels = [["ENTRY", sig.entry, "#2962ff"], ["SL", sig.stop_loss, "#ef5350"], ["TP", sig.take_profit, "#26a69a"]];
+  const pos = S.positions.active.find(p => p.symbol === symbol);
+  if (pos && !levels) levels = [["ENTRY", pos.entry, "#2962ff"], ["SL", pos.stop_loss, "#ef5350"], ["TP", pos.take_profit, "#26a69a"]];
+  $("indGrid").innerHTML = sig ? Object.entries({
+    RSI14: sig.indicators.rsi14, ATR: sig.indicators.atr, "ATR %": sig.indicators.atr_pct,
+    "EMA20": sig.indicators.ema20, "EMA50": sig.indicators.ema50, "EMA200": sig.indicators.ema200,
+    "MACD hist": sig.indicators.macd_hist,     "BB %B": sig.indicators.bb_percent_b,
+    "trend 20/50 %": sig.indicators.trend_20_50, "vol ratio": sig.indicators.volume_ratio_20d,
+  }).map(([k, v]) => `<div class="kv" style="background:var(--panel2);padding:6px 10px;border-radius:4px">
+        <span>${k}</span><b>${v == null ? "—" : (+v).toFixed(3)}</b></div>`).join("") : "";
+  $("chartDlg").showModal();
+  try {
+    const candles = await api(`/api/candles/${symbol}?interval=${encodeURIComponent(interval)}`);
+    if (chart) chart.remove();
+    chart = LightweightCharts.createChart($("chartBox"), {
+      layout: {background: {color: "#131722"}, textColor: "#8b93a3"},
+      grid: {vertLines: {color: "#1b2130"}, horzLines: {color: "#1b2130"}},
+      timeScale: {borderColor: "#232a38"}, rightPriceScale: {borderColor: "#232a38"},
+    });
+    series = chart.addCandlestickSeries({upColor: "#26a69a", downColor: "#ef5350", borderVisible: false, wickUpColor: "#26a69a", wickDownColor: "#ef5350"});
+    series.setData(candles);
+    (levels || []).forEach(([title, price, color]) => price > 0 && series.createPriceLine({price, color, title, lineStyle: LightweightCharts.LineStyle.Dashed}));
+    chart.timeScale().fitContent();
+  } catch (e) { toast("No candle data for " + symbol, true); }
+}
+
+/* ---------- boot ---------- */
+refresh(); refreshScorecard();
+setInterval(refresh, 15000);
+setInterval(refreshScorecard, 60000);
+</script>
+</body>
+</html>
